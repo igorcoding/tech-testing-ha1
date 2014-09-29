@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 # coding: utf-8
 
-import argparse
 import json
 import logging
 import os
@@ -19,7 +18,7 @@ from gevent.pool import Pool
 import requests
 import tarantool
 import tarantool_queue
-from source.lib.utils import daemonize, create_pidfile, load_config_from_pyfile
+from source.lib.utils import daemonize, create_pidfile, load_config_from_pyfile, parse_cmd_args
 
 SIGNAL_EXIT_CODE_OFFSET = 128
 """Коды выхода рассчитываются как 128 + номер сигнала"""
@@ -180,49 +179,6 @@ def main_loop(config):
         sleep(config.SLEEP)
     else:
         logger.info('Stop application loop.')
-
-
-def parse_cmd_args(args):
-    """
-    Разбирает аргументы командной строки.
-
-    :param args: список аргументов
-    :type args: list
-
-    :rtype: argparse.Namespace
-    """
-    parser = argparse.ArgumentParser(
-        description='Push notifications daemon.'
-    )
-    parser.add_argument(
-        '-c',
-        '--config',
-        dest='config',
-        required=True,
-        help='Path to configuration file.'
-    )
-    parser.add_argument(
-        '-d',
-        '--daemon',
-        dest='daemon',
-        action='store_true',
-        help='Daemonize process.'
-    )
-    parser.add_argument(
-        '-P',
-        '--pid',
-        dest='pidfile',
-        help='Path to pidfile.'
-    )
-
-    return parser.parse_args(args=args)
-
-
-class Config(object):
-    """
-    Класс для хранения настроек приложения.
-    """
-    pass
 
 
 def install_signal_handlers():
