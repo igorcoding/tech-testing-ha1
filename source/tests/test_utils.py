@@ -10,7 +10,8 @@ class UtilsTestCase(unittest.TestCase):
         with mock.patch('os.fork', mock.Mock(return_value=test_pid)):
             with mock.patch('os._exit', mock.Mock()) as os_exit:
                 utils.daemonize()
-                os_exit.assert_called_once_with(0)
+
+        os_exit.assert_called_once_with(0)
 
     def test_daemonize_child(self):
         test_pid = 0
@@ -20,9 +21,27 @@ class UtilsTestCase(unittest.TestCase):
                 with mock.patch('os.setsid', mock.Mock()) as os_setsid:
                     utils.daemonize()
 
-        os_setsid.assert_called_once()
+        os_setsid.assert_called_once()  # TODO: removing setsid call in daemonize function doesn't break test
         os_fork.assert_called_once()
         assert not os_exit.called
+
+    def test_daemonize_child_parent(self):
+        with mock.patch('os.fork', mock.Mock(side_effect=[0, 42])):
+            with mock.patch('os._exit', mock.Mock()) as os_exit:
+                with mock.patch('os.setsid', mock.Mock()):
+                    utils.daemonize()
+
+        os_exit.assert_called_once_with(0)
+
+    def test_daemonize_child_oserror(self):
+        exc = OSError()
+        exc.errno = 42
+        exc.strerror = "42 error"
+
+        with mock.patch('os.fork', mock.Mock(side_effect=[0, exc])):
+            with mock.patch('os._exit', mock.Mock()):
+                with mock.patch('os.setsid', mock.Mock()):
+                    self.assertRaises(Exception, utils.daemonize)
 
     def test_daemonize_oserror(self):
         exc = OSError()
@@ -43,14 +62,39 @@ class UtilsTestCase(unittest.TestCase):
         m_open().write.assert_called_once_with(str(pid))
 
     def test_load_config_from_pyfile(self):
-
         result = utils.load_config_from_pyfile('source/tests/test_config/test_conf.py')
-        assert result.TEST1 == 'hi1'
-        assert result.TEST2 == 'hi2'
-        assert result.TEST3 == {
+        self.assertEqual(result.TEST1, 'hi1')
+        self.assertEqual(result.TEST2, 'hi2')
+        self.assertEqual(result.TEST3, {
             'key1': 'val1',
             'key2': 'val2'
-        }
+        })
+
+    def test_parse_cmd_args(self):
+        import argparse
+        descr = 'test_app'
+        config_path = '/file/path'
+        pid = 42
+        args = '%s -c %s -d -P %d' % (descr, config_path, pid)
+        obj = utils.parse_cmd_args(args.split(' ')[1:], descr)
+        self.assertEqual(obj, argparse.Namespace(config=config_path, daemon=True, pidfile=str(pid)))
+        pass
+
+    def test_check_network_status_success(self):
+        url = 'dummy.org'
+        with mock.patch('urllib2.urlopen', mock.Mock()):
+            self.assertTrue(utils.check_network_status(url, 60))
+
+    def test_check_network_status_fail(self):
+        import urllib2
+        import socket
+        url = 'dummy.org'
+        url_err = urllib2.URLError('because')
+        socket_err = socket.error()
+        with mock.patch('urllib2.urlopen', mock.Mock(side_effect=[url_err, socket_err, ValueError])):
+            self.assertFalse(utils.check_network_status(url, 60))
+            self.assertFalse(utils.check_network_status(url, 60))
+            self.assertFalse(utils.check_network_status(url, 60))
 
 
 

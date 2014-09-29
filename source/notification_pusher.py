@@ -18,7 +18,7 @@ from gevent.pool import Pool
 import requests
 import tarantool
 import tarantool_queue
-from source.lib.utils import daemonize, create_pidfile, load_config_from_pyfile, parse_cmd_args
+from source.lib import utils
 
 SIGNAL_EXIT_CODE_OFFSET = 128
 """Коды выхода рассчитываются как 128 + номер сигнала"""
@@ -200,15 +200,15 @@ def main(argv):
     :param argv: агрументы командной строки.
     :type argv: list
     """
-    args = parse_cmd_args(argv[1:])
+    args = utils.parse_cmd_args(argv[1:])
 
     if args.daemon:
-        daemonize()
+        utils.daemonize()
 
     if args.pidfile:
-        create_pidfile(args.pidfile)
+        utils.create_pidfile(args.pidfile)
 
-    config = load_config_from_pyfile(
+    config = utils.load_config_from_pyfile(
         os.path.realpath(os.path.expanduser(args.config))
     )
 
