@@ -19,6 +19,7 @@ from gevent.pool import Pool
 import requests
 import tarantool
 import tarantool_queue
+from source.lib.utils import daemonize
 
 SIGNAL_EXIT_CODE_OFFSET = 128
 """Коды выхода рассчитываются как 128 + номер сигнала"""
@@ -215,29 +216,6 @@ def parse_cmd_args(args):
     )
 
     return parser.parse_args(args=args)
-
-
-def daemonize():
-    """
-    Демонизирует текущий процесс.
-    """
-    try:
-        pid = os.fork()
-    except OSError as exc:
-        raise Exception("%s [%d]" % (exc.strerror, exc.errno))
-
-    if pid == 0:
-        os.setsid()
-
-        try:
-            pid = os.fork()
-        except OSError as exc:
-            raise Exception("%s [%d]" % (exc.strerror, exc.errno))
-
-        if pid > 0:
-            os._exit(0)
-    else:
-        os._exit(0)
 
 
 class Config(object):
