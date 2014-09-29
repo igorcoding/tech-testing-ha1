@@ -34,9 +34,7 @@ class UtilsTestCase(unittest.TestCase):
         os_exit.assert_called_once_with(0)
 
     def test_daemonize_child_oserror(self):
-        exc = OSError()
-        exc.errno = 42
-        exc.strerror = "42 error"
+        exc = OSError("err")
 
         with mock.patch('os.fork', mock.Mock(side_effect=[0, exc])):
             with mock.patch('os._exit', mock.Mock()):
@@ -44,9 +42,7 @@ class UtilsTestCase(unittest.TestCase):
                     self.assertRaises(Exception, utils.daemonize)
 
     def test_daemonize_oserror(self):
-        exc = OSError()
-        exc.errno = 42
-        exc.strerror = "42 error"
+        exc = OSError("err")
 
         with mock.patch('os.fork', mock.Mock(side_effect=exc)):
             self.assertRaises(Exception, utils.daemonize)
