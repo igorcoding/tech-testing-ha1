@@ -19,7 +19,7 @@ from gevent.pool import Pool
 import requests
 import tarantool
 import tarantool_queue
-from source.lib.utils import daemonize
+from source.lib.utils import daemonize, create_pidfile, load_config_from_pyfile
 
 SIGNAL_EXIT_CODE_OFFSET = 128
 """Коды выхода рассчитываются как 128 + номер сигнала"""
@@ -225,30 +225,6 @@ class Config(object):
     pass
 
 
-def load_config_from_pyfile(filepath):
-    """
-    Создает Config объект из py файла и загружает в него настройки.
-
-    Используются только camel-case переменные.
-
-    :param filepath: путь до py файла с настройками
-    :type filepath: basestring
-
-    :rtype: Config
-    """
-    cfg = Config()
-
-    variables = {}
-
-    execfile(filepath, variables)
-
-    for key, value in variables.iteritems():
-        if key.isupper():
-            setattr(cfg, key, value)
-
-    return cfg
-
-
 def install_signal_handlers():
     """
     Устанавливает обработчики системных сигналов.
@@ -257,12 +233,6 @@ def install_signal_handlers():
 
     for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT):
         gevent.signal(signum, stop_handler, signum)
-
-
-def create_pidfile(pidfile_path):
-    pid = str(os.getpid())
-    with open(pidfile_path, 'w') as f:
-        f.write(pid)
 
 
 def main(argv):
