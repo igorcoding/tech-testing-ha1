@@ -110,6 +110,34 @@ def stop_handler(signum):
     exit_code = SIGNAL_EXIT_CODE_OFFSET + signum
 
 
+def _process_task(config, processed_task_queue, task, worker_pool):
+    """
+    Создание воркера на выполнение task
+
+    :param config: конфигурация
+    :type config: Config
+
+    :param processed_task_queue
+    :type processed_task_queue: gevent.gevent_queue.Queue
+
+    :param task
+    :type task: tarantool_queue.Task
+
+    :param worker_pool
+    :type worker_pool: gevent.pool.Pool
+
+    """
+    worker = Greenlet(
+        notification_worker,
+        task,
+        processed_task_queue,
+        timeout=config.HTTP_CONNECTION_TIMEOUT,
+        verify=False
+    )
+    worker_pool.add(worker)
+    worker.start()
+
+
 def main_loop(config):
     """
     Основной цикл приложения.
@@ -164,15 +192,7 @@ def main_loop(config):
                     task_id=task.task_id, number=number
                 ))
 
-                worker = Greenlet(
-                    notification_worker,
-                    task,
-                    processed_task_queue,
-                    timeout=config.HTTP_CONNECTION_TIMEOUT,
-                    verify=False
-                )
-                worker_pool.add(worker)
-                worker.start()
+                _process_task(config, processed_task_queue, task, worker_pool)
 
         done_with_processed_tasks(processed_task_queue)
 

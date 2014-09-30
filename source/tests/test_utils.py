@@ -21,8 +21,8 @@ class UtilsTestCase(unittest.TestCase):
                 with mock.patch('os.setsid', mock.Mock()) as os_setsid:
                     utils.daemonize()
 
-        os_setsid.assert_called_once()  # TODO: removing setsid call in daemonize function doesn't break test
-        os_fork.assert_called_once()
+        os_setsid.assert_called_once_with()
+        assert os_fork.called
         assert not os_exit.called
 
     def test_daemonize_child_parent(self):
@@ -85,9 +85,9 @@ class UtilsTestCase(unittest.TestCase):
         import urllib2
         import socket
         url = 'dummy.org'
-        url_err = urllib2.URLError('because')
-        socket_err = socket.error()
-        with mock.patch('urllib2.urlopen', mock.Mock(side_effect=[url_err, socket_err, ValueError])):
+        with mock.patch('urllib2.urlopen', mock.Mock(side_effect=[urllib2.URLError('because'),
+                                                                  socket.error(),
+                                                                  ValueError])):
             self.assertFalse(utils.check_network_status(url, 60))
             self.assertFalse(utils.check_network_status(url, 60))
             self.assertFalse(utils.check_network_status(url, 60))

@@ -1,4 +1,5 @@
 import gevent
+import requests
 import unittest
 import mock
 import source.notification_pusher as notification_pusher
@@ -22,12 +23,12 @@ class NotificationPusherTestCase(unittest.TestCase):
     def setUp(self):
         self.logger_temp = notification_pusher.logger
         notification_pusher.logger = mock.Mock()
-        pass
 
     def tearDown(self):
         notification_pusher.logger = self.logger_temp
-        pass
 
+    @mock.patch('threading.current_thread', mock.Mock())
+    @mock.patch('requests.post', mock.Mock(return_value=mock.Mock()))
     def test_notification_worker(self):
         test_task_data = {
             'f1': 1,
@@ -38,16 +39,15 @@ class NotificationPusherTestCase(unittest.TestCase):
         m_task_queue = mock.MagicMock()
         test_task = TestTask(42, test_task_data)
 
-        with mock.patch('threading.current_thread', mock.Mock()):
-            with mock.patch('requests.post', mock.Mock(return_value=mock.Mock())):
-                notification_pusher.notification_worker(test_task, m_task_queue)
-                m_calls = m_task_queue.method_calls
-                self.assertEqual(len(m_calls), 1)
-                self.assertEqual(m_calls[0][0], 'put')
-                self.assertEqual(m_calls[0][1], ((test_task, 'ack'),))
+        notification_pusher.notification_worker(test_task, m_task_queue)
+        m_calls = m_task_queue.method_calls
+        self.assertEqual(len(m_calls), 1)
+        self.assertEqual(m_calls[0][0], 'put')
+        self.assertEqual(m_calls[0][1], ((test_task, 'ack'),))
 
+    @mock.patch('threading.current_thread', mock.Mock())
+    @mock.patch('requests.post', mock.Mock(side_effect=[requests.RequestException()]))
     def test_notification_worker_fail(self):
-        import requests
         test_task_data = {
             'f1': 1,
             'f2': 2,
@@ -57,14 +57,13 @@ class NotificationPusherTestCase(unittest.TestCase):
         m_task_queue = mock.MagicMock()
         test_task = TestTask(42, test_task_data)
 
-        with mock.patch('threading.current_thread', mock.Mock()):
-            with mock.patch('requests.post', mock.Mock(side_effect=[requests.RequestException()])):
-                notification_pusher.notification_worker(test_task, m_task_queue)
-                m_calls = m_task_queue.method_calls
-                self.assertEqual(len(m_calls), 1)
-                self.assertEqual(m_calls[0][0], 'put')
-                self.assertEqual(m_calls[0][1], ((test_task, 'bury'),))
+        notification_pusher.notification_worker(test_task, m_task_queue)
+        m_calls = m_task_queue.method_calls
+        self.assertEqual(len(m_calls), 1)
+        self.assertEqual(m_calls[0][0], 'put')
+        self.assertEqual(m_calls[0][1], ((test_task, 'bury'),))
 
+    @mock.patch('source.notification_pusher.stop_handler', mock.Mock())
     def test_install_signal_handlers(self):
         import gevent
         temp_signal = gevent
@@ -83,8 +82,34 @@ class NotificationPusherTestCase(unittest.TestCase):
                     break
 
         def arr_to_str(arr):
-            return '[' + ', '.join([str(x) for x in arr]) + ']'
+            return '[' + ', '.join([str(elem) for elem in arr]) + ']'
 
         self.assertEqual(len(called_sigs), 0, "These signals have not been called: %s" % arr_to_str(sigs))
         notification_pusher.gevent = temp_signal
+
+    @mock.patch('threading.current_thread')
+    def test_stop_handler(self, _):
+        sig = 42
+        temp_run_app = notification_pusher.run_application
+        temp_exit_code = notification_pusher.exit_code
+
+        notification_pusher.stop_handler(sig)
+        self.assertEqual(notification_pusher.run_application, False)
+        self.assertEqual(notification_pusher.exit_code, notification_pusher.SIGNAL_EXIT_CODE_OFFSET + sig)
+
+        notification_pusher.run_application = temp_run_app
+        notification_pusher.exit_code = temp_exit_code
+
+    @unittest.SkipTest
+    def test_done_with_processed_tasks(self):
+        # TODO: not working
+        queue_m = mock.Mock()
+        queue_m.get_nowait = mock.Mock(return_value=(mock.Mock(), 'test_method'))
+        queue_m.qsize = mock.Mock(return_value=1)
+        notification_pusher.done_with_processed_tasks(queue_m)
+
+        assert queue_m.test_method.called
+        pass
+
+
 
