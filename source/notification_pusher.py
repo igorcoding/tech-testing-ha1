@@ -110,7 +110,7 @@ def stop_handler(signum):
     exit_code = SIGNAL_EXIT_CODE_OFFSET + signum
 
 
-def _process_task(config, processed_task_queue, task, worker_pool):
+def start_worker_with_task(config, processed_task_queue, task, worker_pool):
     """
     Создание воркера на выполнение task
 
@@ -118,10 +118,10 @@ def _process_task(config, processed_task_queue, task, worker_pool):
     :type config: Config
 
     :param processed_task_queue
-    :type processed_task_queue: gevent.gevent_queue.Queue
+    :type processed_task_queue: gevent_queue.Queue
 
     :param task
-    :type task: tarantool_queue.Task
+    :type task: Task
 
     :param worker_pool
     :type worker_pool: gevent.pool.Pool
@@ -136,6 +136,34 @@ def _process_task(config, processed_task_queue, task, worker_pool):
     )
     worker_pool.add(worker)
     worker.start()
+
+
+def configure_infrastructure(config):
+    """
+
+    :param config:
+    :type config: Config
+    :return:
+    :rtype: (gevent_queue.Queue, Tube, gevent.pool.Pool)
+    """
+    logger.info('Connect to queue server on {host}:{port} space #{space}.'.format(
+        host=config.QUEUE_HOST, port=config.QUEUE_PORT, space=config.QUEUE_SPACE
+    ))
+    queue = tarantool_queue.Queue(
+        host=config.QUEUE_HOST, port=config.QUEUE_PORT, space=config.QUEUE_SPACE
+    )
+    logger.info('Use tube [{tube}], take timeout={take_timeout}.'.format(
+        tube=config.QUEUE_TUBE,
+        take_timeout=config.QUEUE_TAKE_TIMEOUT
+    ))
+    tube = queue.tube(config.QUEUE_TUBE)
+    logger.info('Create worker pool[{size}].'.format(size=config.WORKER_POOL_SIZE))
+    worker_pool = Pool(config.WORKER_POOL_SIZE)
+    processed_task_queue = gevent_queue.Queue()
+    logger.info('Run main loop. Worker pool size={count}. Sleep time is {sleep}.'.format(
+        count=config.WORKER_POOL_SIZE, sleep=config.SLEEP
+    ))
+    return processed_task_queue, tube, worker_pool
 
 
 def main_loop(config):
@@ -154,28 +182,7 @@ def main_loop(config):
      * Посылаем уведомления о том, что задачи завершены в tarantool.queue.
      * Спим config.SLEEP секунд.
     """
-    logger.info('Connect to queue server on {host}:{port} space #{space}.'.format(
-        host=config.QUEUE_HOST, port=config.QUEUE_PORT, space=config.QUEUE_SPACE
-    ))
-    queue = tarantool_queue.Queue(
-        host=config.QUEUE_HOST, port=config.QUEUE_PORT, space=config.QUEUE_SPACE
-    )
-
-    logger.info('Use tube [{tube}], take timeout={take_timeout}.'.format(
-        tube=config.QUEUE_TUBE,
-        take_timeout=config.QUEUE_TAKE_TIMEOUT
-    ))
-
-    tube = queue.tube(config.QUEUE_TUBE)
-
-    logger.info('Create worker pool[{size}].'.format(size=config.WORKER_POOL_SIZE))
-    worker_pool = Pool(config.WORKER_POOL_SIZE)
-
-    processed_task_queue = gevent_queue.Queue()
-
-    logger.info('Run main loop. Worker pool size={count}. Sleep time is {sleep}.'.format(
-        count=config.WORKER_POOL_SIZE, sleep=config.SLEEP
-    ))
+    processed_task_queue, tube, worker_pool = configure_infrastructure(config)
 
     while run_application:
         free_workers_count = worker_pool.free_count()
@@ -192,7 +199,7 @@ def main_loop(config):
                     task_id=task.task_id, number=number
                 ))
 
-                _process_task(config, processed_task_queue, task, worker_pool)
+                start_worker_with_task(config, processed_task_queue, task, worker_pool)
 
         done_with_processed_tasks(processed_task_queue)
 

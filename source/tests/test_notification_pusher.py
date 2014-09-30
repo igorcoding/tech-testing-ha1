@@ -109,7 +109,19 @@ class NotificationPusherTestCase(unittest.TestCase):
         notification_pusher.done_with_processed_tasks(queue_m)
 
         assert queue_m.test_method.called
+
+    @mock.patch('gevent.Greenlet', mock.MagicMock())
+    @mock.patch('source.lib.utils.Config')
+    @mock.patch('gevent.queue.Queue')
+    @mock.patch('tarantool_queue.tarantool_queue.Task')
+    @mock.patch('gevent.pool.Pool')
+    def test_start_worker_with_task(self, config, queue_m, task_m, worker_pool_m):
+        worker_pool_m.add = mock.Mock()
+
+        notification_pusher.start_worker_with_task(config, queue_m, task_m, worker_pool_m)
+        self.assertEqual(worker_pool_m.add.call_count, 1)
+
+    def test_configure_infrastructure(self):
+
         pass
-
-
 
