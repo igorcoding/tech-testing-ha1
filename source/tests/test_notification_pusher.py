@@ -66,14 +66,25 @@ class NotificationPusherTestCase(unittest.TestCase):
                 self.assertEqual(m_calls[0][1], ((test_task, 'bury'),))
 
     def test_install_signal_handlers(self):
-        temp_signal = gevent.signal
-        gevent_signal_mock = mock.Mock()
-        gevent.signal = gevent_signal_mock
+        import gevent
+        temp_signal = gevent
+        gevent_mock = mock.Mock()
+        notification_pusher.gevent = gevent_mock
         notification_pusher.install_signal_handlers()
 
-        assert gevent_signal_mock.called
-        # import signal
-        # for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT):
-        #     gevent_signal_mock.assert_called_with(signum, notification_pusher.stop_handler, signum)
-        gevent.signal = temp_signal
+        import signal
+        sigs = [signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT]
+
+        called_sigs = [x for x in sigs]
+        for signum in sigs:
+            for call in gevent_mock.method_calls:
+                if call[0] == 'signal' and call[1][0] == signum:
+                    called_sigs.remove(signum)
+                    break
+
+        def arr_to_str(arr):
+            return '[' + ', '.join([str(x) for x in arr]) + ']'
+
+        self.assertEqual(len(called_sigs), 0, "These signals have not been called: %s" % arr_to_str(sigs))
+        notification_pusher.gevent = temp_signal
 
