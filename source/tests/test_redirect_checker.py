@@ -121,6 +121,24 @@ class RedirectCheckerTestCase(unittest.TestCase):
             ret_conf = redirect_checker.prepare(args)
         self.assertEqual(ret_conf, args.config)
 
+    def test_main_loop(self):
+        config = mock.Mock()
+        config.SLEEP = 42
+
+        def break_run(*args, **kwargs):
+            redirect_checker.run_application = False
+
+        with mock.patch('os.getpid', mock.Mock(return_value=24)):
+            with mock.patch('source.redirect_checker.run_application', mock.Mock()):
+                with mock.patch('source.redirect_checker.main_loop_iteration', mock.MagicMock()) as main_loop_iter:
+                    with mock.patch('source.redirect_checker.sleep', mock.Mock(side_effect=break_run)) as main_loop_sleep:
+                        redirect_checker.main_loop(config)
+        self.assertTrue(main_loop_iter.called)
+        self.assertEqual(main_loop_iter.call_count, 1)
+        main_loop_sleep.assert_called_once_with(config.SLEEP)
+
+        pass
+
     @mock.patch('source.redirect_checker.utils.parse_cmd_args', mock.Mock())
     @mock.patch('source.redirect_checker.prepare', mock.Mock())
     @mock.patch('source.redirect_checker.main_loop')

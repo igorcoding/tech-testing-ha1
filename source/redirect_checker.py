@@ -12,6 +12,8 @@ from source.lib import utils
 
 logger = logging.getLogger('redirect_checker')
 
+run_application = True
+
 
 def main_loop_iteration(config, parent_pid):
     if utils.check_network_status(config.CHECK_URL, config.HTTP_TIMEOUT):
@@ -38,7 +40,7 @@ def main_loop(config):
             config.WORKER_POOL_SIZE, config.SLEEP
         ))
     parent_pid = os.getpid()
-    while True:
+    while run_application:
         main_loop_iteration(config, parent_pid)
 
         sleep(config.SLEEP)

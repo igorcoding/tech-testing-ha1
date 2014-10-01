@@ -83,8 +83,8 @@ class NotificationPusherTestCase(unittest.TestCase):
         self.assertEqual(len(called_sigs), 0, "These signals have not been called: %s" % arr_to_str(called_sigs))
 
 
-    @mock.patch('source.notification_pusher.current_thread')
-    def test_stop_handler(self, _):
+    @mock.patch('source.notification_pusher.current_thread', mock.MagicMock())
+    def test_stop_handler(self):
         sig = 42
         temp_run_app = notification_pusher.run_application
         temp_exit_code = notification_pusher.exit_code
@@ -111,7 +111,7 @@ class NotificationPusherTestCase(unittest.TestCase):
     @mock.patch('gevent.queue.Queue')
     @mock.patch('tarantool_queue.tarantool_queue.Task')
     @mock.patch('gevent.pool.Pool')
-    def test_start_worker_with_task(self, config, queue_m, task_m, worker_pool_m):
+    def test_start_worker_with_task(self, worker_pool_m, task_m, queue_m, config):
         worker_pool_m.add = mock.Mock()
 
         notification_pusher.start_worker_with_task(config, queue_m, task_m, worker_pool_m)
@@ -125,13 +125,12 @@ class NotificationPusherTestCase(unittest.TestCase):
     @mock.patch('gevent.queue.Queue')
     @mock.patch('tarantool_queue.tarantool_queue.Tube')
     @mock.patch('gevent.pool.Pool')
-    @mock.patch("source.notification_pusher.start_worker_with_task", mock.Mock())
+    @mock.patch("source.notification_pusher.start_worker_with_task")
     @mock.patch("source.notification_pusher.done_with_processed_tasks", mock.Mock())
-    def test_start_workers(self, config, processed_task_queue, tube, worker_pool):
+    def test_start_workers(self, start_worker_with_task_m, worker_pool, tube, processed_task_queue, config):
         free_workers_count = 10
         worker_pool.free_count = mock.Mock(return_value=free_workers_count)
 
         notification_pusher.start_workers(config, processed_task_queue, tube, worker_pool)
 
-        self.assertEquals(notification_pusher.start_worker_with_task.call_count,
-                          free_workers_count)
+        self.assertEquals(start_worker_with_task_m.call_count, free_workers_count)
