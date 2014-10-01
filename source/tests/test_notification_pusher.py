@@ -76,12 +76,11 @@ class NotificationPusherTestCase(unittest.TestCase):
             for call in gevent_mock.method_calls:
                 if call[0] == 'signal' and call[1][0] == signum:
                     called_sigs.remove(signum)
-                    break
 
         def arr_to_str(arr):
             return '[' + ', '.join([str(elem) for elem in arr]) + ']'
 
-        self.assertEqual(len(called_sigs), 0, "These signals have not been called: %s" % arr_to_str(sigs))
+        self.assertEqual(len(called_sigs), 0, "These signals have not been called: %s" % arr_to_str(called_sigs))
 
 
     @mock.patch('source.notification_pusher.current_thread')
