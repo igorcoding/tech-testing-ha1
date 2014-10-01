@@ -166,6 +166,23 @@ def configure_infrastructure(config):
     return processed_task_queue, tube, worker_pool
 
 
+def start_workers(config, processed_task_queue, tube, worker_pool):
+    free_workers_count = worker_pool.free_count()
+    logger.debug('Pool has {count} free workers.'.format(count=free_workers_count))
+    for number in xrange(free_workers_count):
+        logger.debug('Get task from tube for worker#{number}.'.format(number=number))
+
+        task = tube.take(config.QUEUE_TAKE_TIMEOUT)
+
+        if task:
+            logger.info('Start worker#{number} for task id={task_id}.'.format(
+                task_id=task.task_id, number=number
+            ))
+
+            start_worker_with_task(config, processed_task_queue, task, worker_pool)
+    done_with_processed_tasks(processed_task_queue)
+
+
 def main_loop(config):
     """
     Основной цикл приложения.
@@ -185,23 +202,7 @@ def main_loop(config):
     processed_task_queue, tube, worker_pool = configure_infrastructure(config)
 
     while run_application:
-        free_workers_count = worker_pool.free_count()
-
-        logger.debug('Pool has {count} free workers.'.format(count=free_workers_count))
-
-        for number in xrange(free_workers_count):
-            logger.debug('Get task from tube for worker#{number}.'.format(number=number))
-
-            task = tube.take(config.QUEUE_TAKE_TIMEOUT)
-
-            if task:
-                logger.info('Start worker#{number} for task id={task_id}.'.format(
-                    task_id=task.task_id, number=number
-                ))
-
-                start_worker_with_task(config, processed_task_queue, task, worker_pool)
-
-        done_with_processed_tasks(processed_task_queue)
+        start_workers(config, processed_task_queue, tube, worker_pool)
 
         sleep(config.SLEEP)
     else:

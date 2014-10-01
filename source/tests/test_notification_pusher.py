@@ -122,3 +122,17 @@ class NotificationPusherTestCase(unittest.TestCase):
 
         pass
 
+    @mock.patch('source.lib.utils.Config')
+    @mock.patch('gevent.queue.Queue')
+    @mock.patch('tarantool_queue.tarantool_queue.Tube')
+    @mock.patch('gevent.pool.Pool')
+    @mock.patch("source.notification_pusher.start_worker_with_task", mock.Mock())
+    @mock.patch("source.notification_pusher.done_with_processed_tasks", mock.Mock())
+    def test_start_workers(self, config, processed_task_queue, tube, worker_pool):
+        free_workers_count = 10
+        worker_pool.free_count = mock.Mock(return_value=free_workers_count)
+
+        notification_pusher.start_workers(config, processed_task_queue, tube, worker_pool)
+
+        self.assertEquals(notification_pusher.start_worker_with_task.call_count,
+                          free_workers_count)
