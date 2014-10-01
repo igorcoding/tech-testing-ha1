@@ -2,6 +2,7 @@ import gevent
 import requests
 import unittest
 import mock
+from source.lib.utils import Config
 import source.notification_pusher as notification_pusher
 
 
@@ -69,6 +70,7 @@ class NotificationPusherTestCase(unittest.TestCase):
         notification_pusher.install_signal_handlers()
 
         import signal
+
         sigs = [signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT]
 
         called_sigs = [x for x in sigs]
@@ -96,15 +98,44 @@ class NotificationPusherTestCase(unittest.TestCase):
         notification_pusher.run_application = temp_run_app
         notification_pusher.exit_code = temp_exit_code
 
-    @unittest.SkipTest
     def test_done_with_processed_tasks(self):
-        # TODO: not working
         queue_m = mock.Mock()
-        queue_m.get_nowait = mock.Mock(return_value=(mock.Mock(), 'test_method'))
+        task = mock.Mock()
+        queue_m.get_nowait = mock.Mock(return_value=(task, 'test_method'))
         queue_m.qsize = mock.Mock(return_value=1)
+
         notification_pusher.done_with_processed_tasks(queue_m)
 
-        assert queue_m.test_method.called
+        assert task.test_method.called, "task's method not called"
+
+    def test_done_with_processed_tasks_db_exception_handling(self):
+        queue_m = mock.Mock()
+        task = mock.Mock()
+        queue_m.get_nowait = mock.Mock(return_value=(task, 'test_method'))
+        queue_m.qsize = mock.Mock(return_value=1)
+
+        import tarantool
+        task.test_method = mock.Mock(side_effect=tarantool.DatabaseError())
+
+        try:
+            notification_pusher.done_with_processed_tasks(queue_m)
+        except tarantool.DatabaseError:
+            assert False, 'tarantool.DatabaseError raised from notification_pusher'
+
+    def test_done_with_processed_tasks_gevent_exception_handling(self):
+        #TODO: gevent_queue.Empty
+        queue_m = mock.Mock()
+        task = mock.Mock()
+        queue_m.get_nowait = mock.Mock(return_value=(task, 'test_method'))
+        queue_m.qsize = mock.Mock(return_value=1)
+
+        import tarantool
+        task.test_method = mock.Mock(side_effect=tarantool.DatabaseError())
+
+        try:
+            notification_pusher.done_with_processed_tasks(queue_m)
+        except tarantool.DatabaseError:
+            assert False, 'tarantool.DatabaseError raised from notification_pusher'
 
     @mock.patch('source.notification_pusher.Greenlet', mock.MagicMock())
     @mock.patch('source.lib.utils.Config')
@@ -117,9 +148,28 @@ class NotificationPusherTestCase(unittest.TestCase):
         notification_pusher.start_worker_with_task(config, queue_m, task_m, worker_pool_m)
         self.assertEqual(worker_pool_m.add.call_count, 1)
 
-    def test_configure_infrastructure(self):
+    @mock.patch('source.notification_pusher.gevent_queue.Queue')
+    @mock.patch('source.notification_pusher.Pool')
+    @mock.patch('source.notification_pusher.tarantool_queue.Queue')
+    def test_configure_infrastructure(self, Queue, Pool, GQueue):
+        config = Config()
+        config.QUEUE_HOST = 'test'
+        config.QUEUE_PORT = 8888
+        config.QUEUE_SPACE = 'space'
+        config.QUEUE_TUBE = 'tube'
+        config.WORKER_POOL_SIZE = 100500
+        config.QUEUE_TAKE_TIMEOUT = 0
+        config.SLEEP = 0
 
-        pass
+        notification_pusher.configure_infrastructure(config)
+
+        Queue.assert_called_with(
+            host=config.QUEUE_HOST, port=config.QUEUE_PORT, space=config.QUEUE_SPACE
+        )
+
+        Pool.assert_called_with(config.WORKER_POOL_SIZE)
+        GQueue.assert_called_with()
+
 
     @mock.patch('source.lib.utils.Config')
     @mock.patch('gevent.queue.Queue')
