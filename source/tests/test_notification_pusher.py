@@ -27,8 +27,8 @@ class NotificationPusherTestCase(unittest.TestCase):
     def tearDown(self):
         notification_pusher.logger = self.logger_temp
 
-    @mock.patch('threading.current_thread', mock.Mock())
-    @mock.patch('requests.post', mock.Mock(return_value=mock.Mock()))
+    @mock.patch('source.notification_pusher.current_thread', mock.Mock())
+    @mock.patch('source.notification_pusher.requests.post', mock.Mock(return_value=mock.Mock()))
     def test_notification_worker(self):
         test_task_data = {
             'f1': 1,
@@ -45,8 +45,8 @@ class NotificationPusherTestCase(unittest.TestCase):
         self.assertEqual(m_calls[0][0], 'put')
         self.assertEqual(m_calls[0][1], ((test_task, 'ack'),))
 
-    @mock.patch('threading.current_thread', mock.Mock())
-    @mock.patch('requests.post', mock.Mock(side_effect=[requests.RequestException()]))
+    @mock.patch('source.notification_pusher.current_thread', mock.Mock())
+    @mock.patch('source.notification_pusher.requests.post', mock.Mock(side_effect=[requests.RequestException()]))
     def test_notification_worker_fail(self):
         test_task_data = {
             'f1': 1,
@@ -64,11 +64,8 @@ class NotificationPusherTestCase(unittest.TestCase):
         self.assertEqual(m_calls[0][1], ((test_task, 'bury'),))
 
     @mock.patch('source.notification_pusher.stop_handler', mock.Mock())
-    def test_install_signal_handlers(self):
-        import gevent
-        temp_signal = gevent
-        gevent_mock = mock.Mock()
-        notification_pusher.gevent = gevent_mock
+    @mock.patch('source.notification_pusher.gevent')
+    def test_install_signal_handlers(self, gevent_mock):
         notification_pusher.install_signal_handlers()
 
         import signal
@@ -85,9 +82,9 @@ class NotificationPusherTestCase(unittest.TestCase):
             return '[' + ', '.join([str(elem) for elem in arr]) + ']'
 
         self.assertEqual(len(called_sigs), 0, "These signals have not been called: %s" % arr_to_str(sigs))
-        notification_pusher.gevent = temp_signal
 
-    @mock.patch('threading.current_thread')
+
+    @mock.patch('source.notification_pusher.current_thread')
     def test_stop_handler(self, _):
         sig = 42
         temp_run_app = notification_pusher.run_application
@@ -110,7 +107,7 @@ class NotificationPusherTestCase(unittest.TestCase):
 
         assert queue_m.test_method.called
 
-    @mock.patch('gevent.Greenlet', mock.MagicMock())
+    @mock.patch('source.notification_pusher.Greenlet', mock.MagicMock())
     @mock.patch('source.lib.utils.Config')
     @mock.patch('gevent.queue.Queue')
     @mock.patch('tarantool_queue.tarantool_queue.Task')
