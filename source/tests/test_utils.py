@@ -1,5 +1,6 @@
 import unittest
 import mock
+import __builtin__
 import source.lib.utils as utils
 
 
@@ -34,9 +35,7 @@ class UtilsTestCase(unittest.TestCase):
         os_exit.assert_called_once_with(0)
 
     def test_daemonize_child_oserror(self):
-        exc = OSError("err")
-
-        with mock.patch('os.fork', mock.Mock(side_effect=[0, exc])):
+        with mock.patch('os.fork', mock.Mock(side_effect=[0, OSError("err")])):
             with mock.patch('os._exit', mock.Mock()):
                 with mock.patch('os.setsid', mock.Mock()):
                     self.assertRaises(Exception, utils.daemonize)
@@ -58,13 +57,23 @@ class UtilsTestCase(unittest.TestCase):
         m_open().write.assert_called_once_with(str(pid))
 
     def test_load_config_from_pyfile(self):
-        result = utils.load_config_from_pyfile('source/tests/test_config/test_conf.py')
-        self.assertEqual(result.TEST1, 'hi1')
-        self.assertEqual(result.TEST2, 'hi2')
-        self.assertEqual(result.TEST3, {
-            'key1': 'val1',
-            'key2': 'val2'
-        })
+        conf = {
+            'TEST1': 'hi1',
+            'TEST2': {
+                'key1': 'val1'
+            },
+            'test3': 'stop!'
+        }
+        with mock.patch('source.lib.utils.exec_py_file', mock.Mock(return_value=conf)):
+            result = utils.load_config_from_pyfile('/file/path')
+
+        parsed_conf = utils.Config()
+        parsed_conf.TEST1 = conf['TEST1']
+        parsed_conf.TEST2 = conf['TEST2']
+
+        self.assertEqual(result.TEST1, parsed_conf.TEST1)
+        self.assertEqual(result.TEST2, parsed_conf.TEST2)
+        self.assertRaises(AttributeError, lambda: getattr(result, 'test3'))
 
     def test_parse_cmd_args(self):
         import argparse
