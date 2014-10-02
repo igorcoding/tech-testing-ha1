@@ -3,6 +3,8 @@ import mock
 import __builtin__
 import source.lib.utils as utils
 
+class Args:
+    pass
 
 class UtilsTestCase(unittest.TestCase):
     def test_daemonize_parent(self):
@@ -108,6 +110,50 @@ class UtilsTestCase(unittest.TestCase):
         self.assertTrue(process_mock.called)
         self.assertEqual(process_mock.call_count, num)
         pass
+
+    def test_prepare_daemon_pid(self):
+        args = Args()
+        args.daemon = True
+        args.pidfile = '/file/path'
+
+        conf = mock.Mock()
+        args.config = conf
+        self._prepare(args)
+
+    def test_prepare_daemon_nopid(self):
+        args = Args()
+        args.daemon = True
+        args.pidfile = None
+
+        conf = mock.Mock()
+        args.config = conf
+        self._prepare(args)
+
+    def test_prepare_nondaemon_pid(self):
+        args = Args()
+        args.daemon = False
+        args.pidfile = '/file/path'
+
+        conf = mock.Mock()
+        args.config = conf
+        self._prepare(args)
+
+    def test_prepare_nondaemon_nopid(self):
+        args = Args()
+        args.daemon = False
+        args.pidfile = None
+
+        conf = mock.Mock()
+        args.config = conf
+        self._prepare(args)
+
+    def _prepare(self, args):
+        with mock.patch('os.path', mock.MagicMock()), \
+             mock.patch('source.lib.utils.daemonize'), \
+             mock.patch('source.lib.utils.create_pidfile'), \
+             mock.patch('source.lib.utils.load_config_from_pyfile', mock.Mock(return_value=args.config)):
+            ret_conf = utils.prepare(args)
+        self.assertEqual(ret_conf, args.config)
 
 
 

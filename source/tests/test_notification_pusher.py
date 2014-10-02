@@ -208,73 +208,40 @@ class NotificationPusherTestCase(unittest.TestCase):
 
         notification_pusher.run_application = True
 
-
-    def test_prepare_daemon_pid(self):
-        args = Args()
-        args.daemon = True
-        args.pidfile = '/file/path'
-
-        conf = mock.Mock()
-        args.config = conf
-        self._prepare(args)
-
-    def test_prepare_daemon_nopid(self):
-        args = Args()
-        args.daemon = True
-        args.pidfile = None
-
-        conf = mock.Mock()
-        args.config = conf
-        self._prepare(args)
-
-    def test_prepare_nondaemon_pid(self):
-        args = Args()
-        args.daemon = False
-        args.pidfile = '/file/path'
-
-        conf = mock.Mock()
-        args.config = conf
-        self._prepare(args)
-
-    def _prepare(self, args):
-        with mock.patch('os.path', mock.MagicMock()), \
-             mock.patch('source.lib.utils.daemonize'), \
-             mock.patch('source.lib.utils.create_pidfile'), \
-             mock.patch('source.lib.utils.load_config_from_pyfile', mock.Mock(return_value=args.config)), \
-             mock.patch('source.notification_pusher.patch_all') as patch_all_m, \
-             mock.patch('source.notification_pusher.dictConfig', mock.Mock()), \
-             mock.patch('source.notification_pusher.current_thread'), \
-             mock.patch('source.notification_pusher.install_signal_handlers') as install_handlers_m:
-            ret_conf = notification_pusher.prepare(args)
-
-        self.assertEqual(ret_conf, args.config)
-        self.assertTrue(install_handlers_m.called)
-        self.assertTrue(patch_all_m)
-
     @mock.patch('source.notification_pusher.utils.parse_cmd_args', mock.Mock())
-    @mock.patch('source.notification_pusher.prepare', mock.Mock())
-    def test_main_all_success(self):
-        config = Config()
+    @mock.patch('source.notification_pusher.dictConfig', mock.Mock())
+    @mock.patch('source.notification_pusher.current_thread', mock.Mock())
+    @mock.patch('source.notification_pusher.install_signal_handlers')
+    @mock.patch('source.notification_pusher.patch_all')
+    def test_main_all_success(self, patch_all_m, install_handlers_m):
+        config = mock.Mock()
 
         expected_ret_code = 42
         with mock.patch('source.notification_pusher.exit_code', expected_ret_code):
-            with mock.patch('source.notification_pusher.prepare', mock.Mock(return_value=config)):
+            with mock.patch('source.lib.utils.prepare', mock.Mock(return_value=config)):
                 with mock.patch('source.notification_pusher.main_loop', mock.Mock(side_effect=break_run)) as main_loop_m:
-                    with mock.patch('source.notification_pusher.sleep') as sleep_m:
+                    with mock.patch('source.notification_pusher.sleep'):
                         ret_code = notification_pusher.main([1, 2, 3, 4])
 
+        self.assertTrue(install_handlers_m.called)
+        self.assertTrue(patch_all_m.called)
         main_loop_m.assert_called_once_with(config)
         self.assertEqual(ret_code, expected_ret_code)
 
+        notification_pusher.run_application = True
+
     @mock.patch('source.notification_pusher.utils.parse_cmd_args', mock.Mock())
-    @mock.patch('source.notification_pusher.prepare', mock.Mock())
-    def test_main_all_success(self):
-        config = Config()
+    @mock.patch('source.notification_pusher.dictConfig', mock.Mock())
+    @mock.patch('source.notification_pusher.current_thread', mock.Mock())
+    @mock.patch('source.notification_pusher.install_signal_handlers', mock.Mock())
+    @mock.patch('source.notification_pusher.patch_all', mock.Mock())
+    def test_main_fail(self):
+        config = mock.Mock()
         config.SLEEP_ON_FAIL = 23
 
         expected_ret_code = 42
         with mock.patch('source.notification_pusher.exit_code', expected_ret_code):
-            with mock.patch('source.notification_pusher.prepare', mock.Mock(return_value=config)):
+            with mock.patch('source.lib.utils.prepare', mock.Mock(return_value=config)):
                 with mock.patch('source.notification_pusher.main_loop', mock.Mock(side_effect=Exception)) as main_loop_m:
                     with mock.patch('source.notification_pusher.sleep', mock.Mock(side_effect=break_run)) as sleep_m:
                         ret_code = notification_pusher.main([1, 2, 3, 4])

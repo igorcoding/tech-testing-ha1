@@ -46,21 +46,10 @@ def main_loop(config):
         sleep(config.SLEEP)
 
 
-def prepare(args):
-    if args.daemon:
-        utils.daemonize()
-    if args.pidfile:
-        utils.create_pidfile(args.pidfile)
-    config = utils.load_config_from_pyfile(
-        os.path.realpath(os.path.expanduser(args.config))
-    )
-    dictConfig(config.LOGGING)
-    return config
-
-
 def main(argv):
     args = utils.parse_cmd_args(argv[1:])
-    config = prepare(args)
+    config = utils.prepare(args)
+    dictConfig(config.LOGGING)
 
     main_loop(config)
 
