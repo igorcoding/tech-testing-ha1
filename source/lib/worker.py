@@ -38,6 +38,35 @@ def get_redirect_history_from_task(task, timeout, max_redirects=30, user_agent=N
     return is_input, data
 
 
+def handle_next_task(config, input_tube, output_tube):
+    task = input_tube.take(config.QUEUE_TAKE_TIMEOUT)
+    if task:
+        logger.info(u'Starting task id={}.'.format(task.task_id))
+        result = get_redirect_history_from_task(
+            task,
+            config.HTTP_TIMEOUT,
+            config.MAX_REDIRECTS,
+            config.USER_AGENT
+        )
+        if result:
+            is_input, data = result
+            if is_input:
+                input_tube.put(
+                    data,
+                    delay=config.RECHECK_DELAY,
+                    pri=task.meta()['pri']
+                )
+            else:
+                output_tube.put(data)
+            logger.debug(u'Task id={} data:{}'.format(task.task_id, data))
+        try:
+            task.ack()
+            logger.info(u'Task id={} done'.format(task.task_id))
+        except DatabaseError as e:
+            logger.info('Task ack fail')
+            logger.exception(e)
+
+
 def worker(config, parent_pid):
     input_tube = get_tube(
         host=config.INPUT_QUEUE_HOST,
@@ -69,31 +98,6 @@ def worker(config, parent_pid):
 
     # run while parent is alive
     while os.path.exists(parent_proc):
-        task = input_tube.take(config.QUEUE_TAKE_TIMEOUT)
-        if task:
-            logger.info(u'Starting task id={}.'.format(task.task_id))
-            result = get_redirect_history_from_task(
-                task,
-                config.HTTP_TIMEOUT,
-                config.MAX_REDIRECTS,
-                config.USER_AGENT
-            )
-            if result:
-                is_input, data = result
-                if is_input:
-                    input_tube.put(
-                        data,
-                        delay=config.RECHECK_DELAY,
-                        pri=task.meta()['pri']
-                    )
-                else:
-                    output_tube.put(data)
-                logger.debug(u'Task id={} data:{}'.format(task.task_id, data))
-            try:
-                task.ack()
-                logger.info(u'Task id={} done'.format(task.task_id))
-            except DatabaseError as e:
-                logger.info('Task ack fail')
-                logger.exception(e)
+        handle_next_task(config, input_tube, output_tube)
     else:
         logger.info('Parent is dead. exiting')
