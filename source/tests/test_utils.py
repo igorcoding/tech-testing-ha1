@@ -101,6 +101,13 @@ class UtilsTestCase(unittest.TestCase):
             self.assertFalse(utils.check_network_status(url, 60))
             self.assertFalse(utils.check_network_status(url, 60))
 
+    @mock.patch('source.lib.utils.Process')
+    def test_spawn_workers(self, process_mock):
+        num = 10
+        utils.spawn_workers(num, mock.Mock(), mock.Mock(), mock.Mock())
+        self.assertTrue(process_mock.called)
+        self.assertEqual(process_mock.call_count, num)
+        pass
 
 
 

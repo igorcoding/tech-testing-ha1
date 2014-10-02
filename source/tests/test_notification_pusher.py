@@ -184,3 +184,19 @@ class NotificationPusherTestCase(unittest.TestCase):
         notification_pusher.start_workers(config, processed_task_queue, tube, worker_pool)
 
         self.assertEquals(start_worker_with_task_m.call_count, free_workers_count)
+
+    @mock.patch('source.notification_pusher.configure_infrastructure', mock.Mock(return_value=(1,1,1)))
+    @mock.patch('source.notification_pusher.run_application', mock.Mock())
+    def test_main_loop(self):
+        config = Config()
+        config.SLEEP = 42
+
+        def break_run(*args, **kwargs):
+            notification_pusher.run_application = False
+
+        with mock.patch('source.notification_pusher.start_workers', mock.MagicMock()) as main_loop_iter:
+            with mock.patch('source.notification_pusher.sleep', mock.Mock(side_effect=break_run)) as main_loop_sleep:
+                notification_pusher.main_loop(config)
+        self.assertTrue(main_loop_iter.called)
+        self.assertEqual(main_loop_iter.call_count, 1)
+        main_loop_sleep.assert_called_once_with(config.SLEEP)
