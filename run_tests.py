@@ -9,8 +9,9 @@ sys.path.insert(0, source_dir)
 
 from source.tests.test_notification_pusher import NotificationPusherTestCase
 from source.tests.test_redirect_checker import RedirectCheckerTestCase
-from source.tests.test_utils import UtilsTestCase
-from source.tests.test_worker import WorkerTestCase
+from source.tests.lib.test_utils import UtilsTestCase
+from source.tests.lib.test_worker import WorkerTestCase
+from source.tests.lib.test_init import InitTestCase
 
 
 if __name__ == '__main__':
@@ -19,6 +20,7 @@ if __name__ == '__main__':
         unittest.makeSuite(RedirectCheckerTestCase),
         unittest.makeSuite(UtilsTestCase),
         unittest.makeSuite(WorkerTestCase),
+        unittest.makeSuite(InitTestCase)
     ))
     result = unittest.TextTestRunner().run(suite)
     sys.exit(not result.wasSuccessful())
