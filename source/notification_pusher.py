@@ -219,6 +219,21 @@ def install_signal_handlers():
         gevent.signal(signum, stop_handler, signum)
 
 
+def prepare(args):
+    if args.daemon:
+        utils.daemonize()
+    if args.pidfile:
+        utils.create_pidfile(args.pidfile)
+    config = utils.load_config_from_pyfile(
+        os.path.realpath(os.path.expanduser(args.config))
+    )
+    patch_all()
+    dictConfig(config.LOGGING)
+    current_thread().name = 'pusher.main'
+    install_signal_handlers()
+    return config
+
+
 def main(argv):
     """
     Точка входа в приложение.
@@ -229,24 +244,7 @@ def main(argv):
     :type argv: list
     """
     args = utils.parse_cmd_args(argv[1:])
-
-    if args.daemon:
-        utils.daemonize()
-
-    if args.pidfile:
-        utils.create_pidfile(args.pidfile)
-
-    config = utils.load_config_from_pyfile(
-        os.path.realpath(os.path.expanduser(args.config))
-    )
-
-    patch_all()
-
-    dictConfig(config.LOGGING)
-
-    current_thread().name = 'pusher.main'
-
-    install_signal_handlers()
+    config = prepare(args)
 
     while run_application:
         try:
@@ -262,7 +260,6 @@ def main(argv):
         logger.info('Stop application loop in main.')
 
     return exit_code
-
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
