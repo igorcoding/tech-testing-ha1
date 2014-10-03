@@ -1,7 +1,5 @@
 import unittest
 import mock
-from source import lib
-import re
 import rstr
 from source import lib
 
@@ -41,7 +39,7 @@ class InitTestCase(unittest.TestCase):
 
         counters = lib.get_counters(page)
 
-        assert len(counters) == len(lib.COUNTER_TYPES), 'Not all counter found, or too mny counters found'
+        self.assertEqual(len(counters), len(lib.COUNTER_TYPES), 'Not all counter found, or too mny counters found')
 
     def test_get_counters_empty(self):
         self.assertEquals(

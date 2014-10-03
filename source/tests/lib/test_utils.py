@@ -2,8 +2,10 @@ import unittest
 import mock
 import source.lib.utils as utils
 
+
 class Args:
     pass
+
 
 class UtilsTestCase(unittest.TestCase):
     def test_daemonize_parent(self):
@@ -24,8 +26,8 @@ class UtilsTestCase(unittest.TestCase):
                     utils.daemonize()
 
         os_setsid.assert_called_once_with()
-        assert os_fork.called
-        assert not os_exit.called
+        self.assertTrue(os_fork.called, 'fork() has not been called')
+        self.assertFalse(os_exit.called, 'exit should not have been called')
 
     def test_daemonize_child_parent(self):
         with mock.patch('os.fork', mock.Mock(side_effect=[0, 42])):
@@ -78,28 +80,36 @@ class UtilsTestCase(unittest.TestCase):
 
     def test_parse_cmd_args(self):
         import argparse
+
         descr = 'test_app'
         config_path = '/file/path'
         pid = 42
         args = '%s -c %s -d -P %d' % (descr, config_path, pid)
         obj = utils.parse_cmd_args(args.split(' ')[1:], descr)
         self.assertEqual(obj, argparse.Namespace(config=config_path, daemon=True, pidfile=str(pid)))
-        pass
 
     def test_check_network_status_success(self):
         url = 'dummy.org'
         with mock.patch('urllib2.urlopen', mock.Mock()):
             self.assertTrue(utils.check_network_status(url, 60))
 
-    def test_check_network_status_fail(self):
+    def test_check_network_status_fail_urlerror(self):
         import urllib2
-        import socket
+
         url = 'dummy.org'
-        with mock.patch('urllib2.urlopen', mock.Mock(side_effect=[urllib2.URLError('because'),
-                                                                  socket.error(),
-                                                                  ValueError])):
+        with mock.patch('urllib2.urlopen', mock.Mock(side_effect=[urllib2.URLError('because')])):
             self.assertFalse(utils.check_network_status(url, 60))
+
+    def test_check_network_status_fail_socket_error(self):
+        import socket
+
+        url = 'dummy.org'
+        with mock.patch('urllib2.urlopen', mock.Mock(side_effect=[socket.error()])):
             self.assertFalse(utils.check_network_status(url, 60))
+
+    def test_check_network_status_fail_value_error(self):
+        url = 'dummy.org'
+        with mock.patch('urllib2.urlopen', mock.Mock(side_effect=[ValueError])):
             self.assertFalse(utils.check_network_status(url, 60))
 
     @mock.patch('source.lib.utils.Process')
@@ -108,7 +118,6 @@ class UtilsTestCase(unittest.TestCase):
         utils.spawn_workers(num, mock.Mock(), mock.Mock(), mock.Mock())
         self.assertTrue(process_mock.called)
         self.assertEqual(process_mock.call_count, num)
-        pass
 
     def test_prepare_daemon_pid(self):
         args = Args()

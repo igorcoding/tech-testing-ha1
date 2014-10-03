@@ -40,14 +40,10 @@ class RedirectCheckerTestCase(unittest.TestCase):
         config.HTTP_TIMEOUT = 10
         config.WORKER_POOL_SIZE = 30
 
-        temp_active_children = redirect_checker.active_children
-        redirect_checker.active_children = lambda: MyActiveChildren(10)
-
-        redirect_checker.main_loop_iteration(config, 42)
+        with mock.patch('source.redirect_checker.active_children', lambda: MyActiveChildren(10)):
+            redirect_checker.main_loop_iteration(config, 42)
 
         self.assertEqual(spawn_workers_m.called, True)
-
-        redirect_checker.active_children = temp_active_children
 
     @mock.patch('source.redirect_checker.utils.check_network_status', mock.Mock(return_value=True))
     @mock.patch('source.redirect_checker.worker', mock.Mock())
@@ -58,14 +54,10 @@ class RedirectCheckerTestCase(unittest.TestCase):
         config.HTTP_TIMEOUT = 10
         config.WORKER_POOL_SIZE = 10
 
-        temp_active_children = redirect_checker.active_children
-        redirect_checker.active_children = lambda: MyActiveChildren(10)
-
-        redirect_checker.main_loop_iteration(config, 42)
+        with mock.patch('source.redirect_checker.active_children', lambda: MyActiveChildren(10)):
+            redirect_checker.main_loop_iteration(config, 42)
 
         self.assertEqual(spawn_workers_m.called, False)
-
-        redirect_checker.active_children = temp_active_children
 
     @mock.patch('source.redirect_checker.worker', mock.Mock())
     @mock.patch('source.lib.utils.check_network_status', mock.Mock(return_value=False))
@@ -74,13 +66,10 @@ class RedirectCheckerTestCase(unittest.TestCase):
         config.CHECK_URL = 'test_url'
         config.HTTP_TIMEOUT = 10
 
-        temp_active_children = redirect_checker.active_children
-
         length = 10
         active_children_mock = MyActiveChildren(length)
-        redirect_checker.active_children = lambda: active_children_mock
-
-        redirect_checker.main_loop_iteration(config, 42)
+        with mock.patch('source.redirect_checker.active_children', lambda: active_children_mock):
+            redirect_checker.main_loop_iteration(config, 42)
 
         m = active_children_mock.m
 
@@ -93,8 +82,6 @@ class RedirectCheckerTestCase(unittest.TestCase):
                     break
 
         self.assertTrue(all_called_terminate, 'Not all active children have been terminated')
-
-        redirect_checker.active_children = temp_active_children
 
     @mock.patch('os.getpid', mock.Mock(return_value=24))
     @mock.patch('source.redirect_checker.run_application', mock.Mock())
