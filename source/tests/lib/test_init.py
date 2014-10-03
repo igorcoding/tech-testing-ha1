@@ -23,7 +23,6 @@ class InitTestCase(unittest.TestCase):
                           prepared_url,
                           'prepare_url works badly')
 
-
     def test_prepare_url_none(self):
         url = None
         excepted_url = None

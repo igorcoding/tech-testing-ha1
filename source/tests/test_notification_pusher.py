@@ -130,6 +130,17 @@ class NotificationPusherTestCase(unittest.TestCase):
         except tarantool.DatabaseError:
             assert False, 'tarantool.DatabaseError raised from notification_pusher'
 
+    def test_done_with_processed_tasks_queue_empty(self):
+        from gevent import queue as gevent_queue
+        queue_m = mock.Mock()
+        queue_m.get_nowait = mock.Mock(side_effect=[gevent_queue.Empty()])
+        queue_m.qsize = mock.Mock(return_value=1)
+
+        try:
+            notification_pusher.done_with_processed_tasks(queue_m)
+        except gevent_queue.Empty:
+            assert False, 'gevent_queue.Empty raised from notification_pusher'
+
     def test_done_with_processed_tasks_gevent_exception_handling(self):
         #TODO: gevent_queue.Empty
         queue_m = mock.Mock()
@@ -178,13 +189,12 @@ class NotificationPusherTestCase(unittest.TestCase):
         Pool.assert_called_with(config.WORKER_POOL_SIZE)
         GQueue.assert_called_with()
 
-
     @mock.patch('source.lib.utils.Config')
     @mock.patch('gevent.queue.Queue')
     @mock.patch('tarantool_queue.tarantool_queue.Tube')
     @mock.patch('gevent.pool.Pool')
-    @mock.patch("source.notification_pusher.start_worker_with_task")
-    @mock.patch("source.notification_pusher.done_with_processed_tasks", mock.Mock())
+    @mock.patch('source.notification_pusher.start_worker_with_task')
+    @mock.patch('source.notification_pusher.done_with_processed_tasks', mock.Mock())
     def test_start_workers(self, start_worker_with_task_m, worker_pool, tube, processed_task_queue, config):
         free_workers_count = 10
         worker_pool.free_count = mock.Mock(return_value=free_workers_count)
@@ -192,6 +202,22 @@ class NotificationPusherTestCase(unittest.TestCase):
         notification_pusher.start_workers(config, processed_task_queue, tube, worker_pool)
 
         self.assertEquals(start_worker_with_task_m.call_count, free_workers_count)
+
+    @mock.patch('source.lib.utils.Config')
+    @mock.patch('gevent.queue.Queue')
+    @mock.patch('tarantool_queue.tarantool_queue.Tube')
+    @mock.patch('gevent.pool.Pool')
+    @mock.patch('source.notification_pusher.start_worker_with_task')
+    @mock.patch('source.notification_pusher.done_with_processed_tasks', mock.Mock())
+    def test_start_workers_task_is_none(self, start_worker_with_task_m, worker_pool, tube, processed_task_queue, config):
+        free_workers_count = 5
+
+        tube.take = mock.Mock(return_value=None)
+        worker_pool.free_count = mock.Mock(return_value=free_workers_count)
+
+        notification_pusher.start_workers(config, processed_task_queue, tube, worker_pool)
+
+        self.assertEquals(start_worker_with_task_m.call_count, 0)
 
     @mock.patch('source.notification_pusher.configure_infrastructure', mock.Mock(return_value=(1,1,1)))
     @mock.patch('source.notification_pusher.run_application', mock.Mock())

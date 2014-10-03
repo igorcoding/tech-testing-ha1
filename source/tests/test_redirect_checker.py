@@ -49,6 +49,24 @@ class RedirectCheckerTestCase(unittest.TestCase):
 
         redirect_checker.active_children = temp_active_children
 
+    @mock.patch('source.redirect_checker.utils.check_network_status', mock.Mock(return_value=True))
+    @mock.patch('source.redirect_checker.worker', mock.Mock())
+    @mock.patch('source.lib.utils.spawn_workers')
+    def test_main_loop_iteration_no_free_workers(self, spawn_workers_m):
+        config = Config()
+        config.CHECK_URL = 'test_url'
+        config.HTTP_TIMEOUT = 10
+        config.WORKER_POOL_SIZE = 10
+
+        temp_active_children = redirect_checker.active_children
+        redirect_checker.active_children = lambda: MyActiveChildren(10)
+
+        redirect_checker.main_loop_iteration(config, 42)
+
+        self.assertEqual(spawn_workers_m.called, False)
+
+        redirect_checker.active_children = temp_active_children
+
     @mock.patch('source.redirect_checker.worker', mock.Mock())
     @mock.patch('source.lib.utils.check_network_status', mock.Mock(return_value=False))
     def test_main_loop_iteration_no_network_access(self):
