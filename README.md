@@ -1,3 +1,5 @@
+[![Coverage Status](https://img.shields.io/coveralls/igorcoding/tech-testing-ha1.svg)](https://coveralls.io/r/igorcoding/tech-testing-ha1?branch=master)
+
 # Домашнее задание №1
 
 ## Окружение для разработки
