@@ -1,6 +1,5 @@
 import unittest
 import mock
-import __builtin__
 import source.lib.utils as utils
 
 class Args:
