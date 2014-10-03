@@ -90,7 +90,7 @@ class NotificationPusherTestCase(unittest.TestCase):
         def arr_to_str(arr):
             return '[' + ', '.join([str(elem) for elem in arr]) + ']'
 
-        self.assertEqual(len(called_sigs), 0, "These signals have not been called: %s" % arr_to_str(called_sigs))
+        self.assertEqual(len(called_sigs), 0, 'These signals have not been called: %s' % arr_to_str(called_sigs))
 
 
     @mock.patch('source.notification_pusher.current_thread', mock.MagicMock())
