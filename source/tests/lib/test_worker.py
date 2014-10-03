@@ -2,6 +2,7 @@ import unittest
 import mock
 import source.lib.worker as worker
 
+
 class WorkerTestCase(unittest.TestCase):
     def setUp(self):
         pass

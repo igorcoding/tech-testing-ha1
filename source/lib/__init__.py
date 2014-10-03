@@ -71,7 +71,10 @@ def check_for_meta(content, url):
 
 def fix_market_url(url):
     """Преобразует market:// урлы в http://"""
-    return 'http://play.google.com/store/apps/' + url.lstrip("market://")
+    market_url = "market://"
+    if url.startswith(market_url):
+        url = url[len(market_url):]
+    return 'http://play.google.com/store/apps/' + url
 
 
 def make_pycurl_request(url, timeout, useragent=None):
