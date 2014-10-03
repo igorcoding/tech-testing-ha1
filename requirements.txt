@@ -13,3 +13,4 @@ pycurl==7.19.5
 # Test
 coverage==3.7.1
 mock==1.0.1
+rstr==2.1.3
