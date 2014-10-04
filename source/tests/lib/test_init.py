@@ -51,7 +51,7 @@ class InitTestCase(unittest.TestCase):
             try:
                 lib.prepare_url(url)
             except UnicodeError:
-                assert False, 'UnicodeError not cached in prepare_url()'
+                self.fail('UnicodeError not caught in prepare_url()')
 
     def test_prepare_url_none(self):
         url = None
@@ -78,24 +78,24 @@ class InitTestCase(unittest.TestCase):
             lib.get_counters("<html>some text without urls</html>"),
             [],
             'No counters exist in  this page')
-        pass
 
-    def _actual_test_make_pycurl_request(self, redirect_url, resp_test, url, useragent):
-        string_io_m = mock.MagicMock()
-        string_io_m.getvalue = mock.Mock(return_value=resp_test)
-        curl_m = mock.MagicMock()
-        curl_m.getinfo = mock.Mock(return_value=redirect_url)
-        curl_m.setopt = mock.Mock()
+    def _actual_test_make_pycurl_request(self, redirect_url, resp_test, url, useragent, curl_mock=None, string_io_mock=None):
+        if string_io_mock is None:
+            string_io_mock = mock.MagicMock()
+        string_io_mock.getvalue = mock.Mock(return_value=resp_test)
+
+        if curl_mock is None:
+            curl_mock = mock.MagicMock()
+        curl_mock.getinfo = mock.Mock(return_value=redirect_url)
+        curl_mock.setopt = mock.Mock()
+
         with mock.patch('source.lib.to_str', mock.Mock(return_value=url)):
             with mock.patch('source.lib.to_unicode', mock.Mock(return_value=redirect_url)):
-                with mock.patch('source.lib.StringIO', mock.Mock(return_value=string_io_m)):
-                    with mock.patch('pycurl.Curl', mock.Mock(return_value=curl_m)):
+                with mock.patch('source.lib.StringIO', mock.Mock(return_value=string_io_mock)):
+                    with mock.patch('pycurl.Curl', mock.Mock(return_value=curl_mock)):
                         resp, redirect = lib.make_pycurl_request(url, 60, useragent)
         self.assertEqual(resp, resp_test, 'Wrong response')
         self.assertEqual(redirect, redirect_url, 'Wrong redirect url')
-
-        if useragent:
-            curl_m.setopt.assert_any_call(curl_m.USERAGENT, useragent)
 
     @mock.patch('source.lib.prepare_url', mock.Mock())
     def test_make_pycurl_request(self):
@@ -104,7 +104,9 @@ class InitTestCase(unittest.TestCase):
         redirect_url = 'http://another_url.org'
         useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.120 Safari/537.36'
 
-        self._actual_test_make_pycurl_request(redirect_url, resp_test, url, useragent)
+        curl_m = mock.MagicMock()
+        self._actual_test_make_pycurl_request(redirect_url, resp_test, url, useragent, curl_mock=curl_m)
+        curl_m.setopt.assert_any_call(curl_m.USERAGENT, useragent)
 
     @mock.patch('source.lib.prepare_url', mock.Mock())
     def test_make_pycurl_request_no_useragent(self):

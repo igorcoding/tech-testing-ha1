@@ -96,7 +96,7 @@ class WorkerTestCase(unittest.TestCase):
         try:
             worker.handle_next_task(config, input_tube, output_tube)
         except worker.DatabaseError:
-            assert False, 'DatabaseError not cached in handle_next_task()'
+            self.fail('DatabaseError not cached in handle_next_task()')
 
     @mock.patch('source.lib.worker.get_redirect_history', mock.Mock(return_value=(['ERROR'], [], [])))
     def test_get_redirect_history_from_task_with_error(self):

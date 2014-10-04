@@ -137,7 +137,7 @@ class UtilsTestCase(unittest.TestCase):
         args.config = conf
         self._prepare(args)
 
-    def test_prepare_nondaemon_pid(self):
+    def test_prepare_notdaemon_pid(self):
         args = Args()
         args.daemon = False
         args.pidfile = '/file/path'
@@ -146,7 +146,7 @@ class UtilsTestCase(unittest.TestCase):
         args.config = conf
         self._prepare(args)
 
-    def test_prepare_nondaemon_nopid(self):
+    def test_prepare_notdaemon_nopid(self):
         args = Args()
         args.daemon = False
         args.pidfile = None

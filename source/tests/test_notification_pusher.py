@@ -128,7 +128,7 @@ class NotificationPusherTestCase(unittest.TestCase):
         try:
             notification_pusher.done_with_processed_tasks(queue_m)
         except tarantool.DatabaseError:
-            assert False, 'tarantool.DatabaseError raised from notification_pusher'
+            self.fail('tarantool.DatabaseError raised from notification_pusher')
 
     def test_done_with_processed_tasks_queue_empty(self):
         from gevent import queue as gevent_queue
@@ -140,7 +140,7 @@ class NotificationPusherTestCase(unittest.TestCase):
         try:
             notification_pusher.done_with_processed_tasks(queue_m)
         except gevent_queue.Empty:
-            assert False, 'gevent_queue.Empty raised from notification_pusher'
+            self.fail('gevent_queue.Empty raised from notification_pusher')
 
     @mock.patch('source.notification_pusher.Greenlet', mock.MagicMock())
     @mock.patch('source.lib.utils.Config')
