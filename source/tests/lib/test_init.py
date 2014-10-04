@@ -67,6 +67,23 @@ class InitTestCase(unittest.TestCase):
             'No counters exist in  this page')
         pass
 
+    def _actual_test_make_pycurl_request(self, redirect_url, resp_test, url, useragent):
+        string_io_m = mock.MagicMock()
+        string_io_m.getvalue = mock.Mock(return_value=resp_test)
+        curl_m = mock.MagicMock()
+        curl_m.getinfo = mock.Mock(return_value=redirect_url)
+        curl_m.setopt = mock.Mock()
+        with mock.patch('source.lib.to_str', mock.Mock(return_value=url)):
+            with mock.patch('source.lib.to_unicode', mock.Mock(return_value=redirect_url)):
+                with mock.patch('source.lib.StringIO', mock.Mock(return_value=string_io_m)):
+                    with mock.patch('pycurl.Curl', mock.Mock(return_value=curl_m)):
+                        resp, redirect = lib.make_pycurl_request(url, 60, useragent)
+        self.assertEqual(resp, resp_test, 'Wrong response')
+        self.assertEqual(redirect, redirect_url, 'Wrong redirect url')
+
+        if useragent:
+            curl_m.setopt.assert_any_call(curl_m.USERAGENT, useragent)
+
     @mock.patch('source.lib.prepare_url', mock.Mock())
     def test_make_pycurl_request(self):
         url = 'http://test_url.net'
@@ -74,23 +91,25 @@ class InitTestCase(unittest.TestCase):
         redirect_url = 'http://another_url.org'
         useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.120 Safari/537.36'
 
-        string_io_m = mock.MagicMock()
-        string_io_m.getvalue = mock.Mock(return_value=resp_test)
+        self._actual_test_make_pycurl_request(redirect_url, resp_test, url, useragent)
 
-        curl_m = mock.MagicMock()
-        curl_m.getinfo = mock.Mock(return_value=redirect_url)
-        curl_m.setopt = mock.Mock()
+    @mock.patch('source.lib.prepare_url', mock.Mock())
+    def test_make_pycurl_request_no_useragent(self):
+        url = 'http://test_url.net'
+        resp_test = 'hello from test_url.net'
+        redirect_url = 'http://another_url.org'
+        useragent = None
 
-        with mock.patch('source.lib.to_str', mock.Mock(return_value=url)):
-            with mock.patch('source.lib.to_unicode', mock.Mock(return_value=redirect_url)):
-                with mock.patch('source.lib.StringIO', mock.Mock(return_value=string_io_m)):
-                    with mock.patch('pycurl.Curl', mock.Mock(return_value=curl_m)):
-                        resp, redirect = lib.make_pycurl_request(url, 60, useragent)
+        self._actual_test_make_pycurl_request(redirect_url, resp_test, url, useragent)
 
-        self.assertEqual(resp, resp_test, 'Wrong response')
-        self.assertEqual(redirect, redirect_url, 'Wrong redirect url')
+    @mock.patch('source.lib.prepare_url', mock.Mock())
+    def test_make_pycurl_request_with_redirect_url(self):
+        url = 'http://test_url.net'
+        resp_test = 'hello from test_url.net'
+        redirect_url = None
+        useragent = None
 
-        curl_m.setopt.assert_any_call(curl_m.USERAGENT, useragent)
+        self._actual_test_make_pycurl_request(redirect_url, resp_test, url, useragent)
 
     def test_fix_market_url_good(self):
         web_url = 'http://play.google.com/store/apps/'
@@ -129,24 +148,43 @@ class InitTestCase(unittest.TestCase):
         timeout = 10
         expected_redirect_url = 'page.html'
         expected_content = self.get_redirect_html('page.html')
+        expected_redirect_type = lib.REDIRECT_HTTP
 
         with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, expected_redirect_url))):
             redirect_url, redirect_type, content = lib.get_url(url, timeout)
 
             self.assertEquals(redirect_url, expected_redirect_url, 'redirect_url not match')
             self.assertEquals(content, expected_content, 'content not match')
+            self.assertEquals(redirect_type, expected_redirect_type, 'redirect_type is not correct')
 
     def test_get_url_html(self):
         url = 'http://mail.ru'
         timeout = 10
         expected_redirect_url = 'http://mail.ru/page.html'
         expected_content = self.get_redirect_html('page.html')
+        expected_redirect_type = lib.REDIRECT_META
 
         with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, None))):
             redirect_url, redirect_type, content = lib.get_url(url, timeout)
 
             self.assertEquals(redirect_url, expected_redirect_url, 'redirect_url not match')
             self.assertEquals(content, expected_content, 'content not match')
+            self.assertEquals(redirect_type, expected_redirect_type, 'redirect_type is not correct')
+
+    def test_get_url_html_no_meta(self):
+        url = 'http://mail.ru'
+        timeout = 10
+        expected_redirect_url = None
+        expected_content = self.get_redirect_html('page.html')
+        expected_redirect_type = None
+
+        with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, None))):
+            with mock.patch('source.lib.check_for_meta', mock.Mock(return_value=None)):
+                redirect_url, redirect_type, content = lib.get_url(url, timeout)
+
+            self.assertEquals(redirect_url, expected_redirect_url, 'redirect_url not match')
+            self.assertEquals(content, expected_content, 'content not match')
+            self.assertEquals(redirect_type, expected_redirect_type, 'redirect_type is not correct')
 
     def test_get_url_market(self):
         timeout = 10
@@ -158,6 +196,19 @@ class InitTestCase(unittest.TestCase):
             redirect_url, redirect_type, content = lib.get_url(expected_redirect_url, timeout)
 
             assert fix_market_url_m.called, 'fix_market_url() not called'
+
+    def test_get_url_http_new_redirect_and_ok_redirect(self):
+        url = 'http://mail.ru'
+        timeout = 10
+        expected_redirect_url = rstr.xeger(lib.OK_REDIRECT)
+        expected_content = self.get_redirect_html('page.html')
+
+        with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, expected_redirect_url))):
+            redirect_url, redirect_type, content = lib.get_url(url, timeout)
+
+            self.assertIsNone(redirect_url, 'redirect_url is not None')
+            self.assertIsNone(redirect_type, 'redirect_type is not None')
+            self.assertEqual(content, expected_content, 'content not match')
 
     def test_get_url_error(self):
         url = 'http://mail.ru'
