@@ -30,7 +30,6 @@ class InitTestCase(unittest.TestCase):
                 </body>
             </html>"""
 
-
     def test_prepare_url(self):
         url = 'http://a.b.com/name with space.php;c=a b'
         excepted_url = 'http://a.b.com/name%20with%20space.php;c=a+b'
@@ -40,6 +39,19 @@ class InitTestCase(unittest.TestCase):
         self.assertEquals(excepted_url,
                           prepared_url,
                           'prepare_url works badly')
+
+    def test_prepare_url_exception(self):
+        url = 'what ever'
+
+        netlock_m = mock.MagicMock()
+        netlock_m.encode = mock.Mock(side_effect=UnicodeError)
+        urlparse_m = mock.Mock(return_value=('a', netlock_m, 'b', 'c', 'd', 'e'))
+
+        with mock.patch('source.lib.urlparse', urlparse_m):
+            try:
+                lib.prepare_url(url)
+            except UnicodeError:
+                assert False, 'UnicodeError not cached in prepare_url()'
 
     def test_prepare_url_none(self):
         url = None
@@ -124,6 +136,46 @@ class InitTestCase(unittest.TestCase):
 
         assert url, 'No meta tag found'
         assert url.startswith(url_prefix), 'supplied url prefix not took in account'
+
+    def test_check_for_meta_no_meta(self):
+        content = self.get_default_html()
+        url_prefix = 'http://mail.ru'
+
+        url = lib.check_for_meta(content, url_prefix)
+
+        assert url is None, 'url found but no url was specified'
+
+    def test_check_for_meta_no_equal_sign(self):
+        content = r"""
+            <html>
+                <head>
+                    <meta http-equiv="refresh" content="5; url">
+                </head>
+                <body>
+                </body>
+            </html>"""
+
+        url_prefix = 'http://mail.ru'
+
+        url = lib.check_for_meta(content, url_prefix)
+
+        assert url is None, 'url found but no url was specified (no equal sign)'
+
+    def test_check_for_meta_bad_html(self):
+        content = """
+            <html>
+                <head>
+                    <meta http-equiv="refresh" content="5url={0}">
+                </head>
+                <body>
+                </body>
+            </html>"""
+
+        url_prefix = 'http://mail.ru'
+
+        url = lib.check_for_meta(content, url_prefix)
+
+        self.assertEquals(url, None, 'such bad html should be parsed')
 
     def test_get_url_http(self):
         url = 'http://mail.ru'
@@ -224,3 +276,21 @@ class InitTestCase(unittest.TestCase):
                                                                              timeout=10)
             # 2 means 1 source url + 1 redirect from it
             self.assertEquals(len(history_urls), 2, 'continued redirecting after ERROR type')
+
+    def test_get_redirect_history_ok(self):
+        expected_history_types = ['meta_tag', 'meta_tag']
+        expected_history_urls = ['http://odnoklassniki.ru/', 'http://mail.ru/a.html', 'http://mail.ru/b.html']
+
+        content1 = self.get_redirect_html('a.html')
+        content2 = self.get_redirect_html('b.html')
+        content_no_redirect = self.get_default_html()
+
+        with mock.patch('source.lib.get_url', mock.Mock(side_effect=[
+            (expected_history_urls[1], expected_history_types[0], content1),
+            (expected_history_urls[2], expected_history_types[1], content2),
+            (None, None, content_no_redirect)
+        ])):
+            history_types, history_urls, counters = lib.get_redirect_history(expected_history_urls[0],
+                                                                             timeout=10)
+
+            self.assertEquals(len(history_urls), 1, 'should return after odnoklassniki.ru')
