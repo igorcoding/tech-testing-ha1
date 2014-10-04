@@ -11,6 +11,26 @@ class InitTestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def get_redirect_html(self, page):
+        return r"""
+            <html>
+                <head>
+                    <meta http-equiv="refresh" content="5; url={0}">
+                </head>
+                <body>
+                </body>
+            </html>""".format(page)
+
+    def get_default_html(self):
+        return r"""
+            <html>
+                <head>
+                </head>
+                <body>
+                </body>
+            </html>"""
+
+
     def test_prepare_url(self):
         url = 'http://a.b.com/name with space.php;c=a b'
         excepted_url = 'http://a.b.com/name%20with%20space.php;c=a+b'
@@ -96,14 +116,7 @@ class InitTestCase(unittest.TestCase):
         self.assertNotEqual(url, web_url + test_app)
 
     def test_check_for_meta(self):
-        content = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=page.html/">
-                </head>
-                <body>
-                </body>
-            </html>"""
+        content = self.get_redirect_html('page.html')
 
         url_prefix = 'http://mail.ru'
 
@@ -116,14 +129,7 @@ class InitTestCase(unittest.TestCase):
         url = 'http://mail.ru'
         timeout = 10
         expected_redirect_url = 'page.html'
-        expected_content = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=page.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
+        expected_content = self.get_redirect_html('page.html')
 
         with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, expected_redirect_url))):
             redirect_url, redirect_type, content = lib.get_url(url, timeout)
@@ -135,14 +141,7 @@ class InitTestCase(unittest.TestCase):
         url = 'http://mail.ru'
         timeout = 10
         expected_redirect_url = 'http://mail.ru/page.html'
-        expected_content = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=page.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
+        expected_content = self.get_redirect_html('page.html')
 
         with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, None))):
             redirect_url, redirect_type, content = lib.get_url(url, timeout)
@@ -153,14 +152,7 @@ class InitTestCase(unittest.TestCase):
     def test_get_url_market(self):
         timeout = 10
         expected_redirect_url = 'market://something'
-        expected_content = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=market://something/page.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
+        expected_content = self.get_redirect_html('market://something/page.html')
 
         with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, None))),\
             mock.patch('source.lib.fix_market_url') as fix_market_url_m:
@@ -171,15 +163,6 @@ class InitTestCase(unittest.TestCase):
     def test_get_url_error(self):
         url = 'http://mail.ru'
         timeout = 10
-        expected_redirect_url = 'http://mail.ru/page.html'
-        expected_content = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=page.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
 
         with mock.patch('source.lib.make_pycurl_request', mock.Mock(side_effect=ValueError)):
             redirect_url, redirect_type, content = lib.get_url(url, timeout)
@@ -191,36 +174,14 @@ class InitTestCase(unittest.TestCase):
         expected_history_urls = ['http://mail.ru/', 'http://mail.ru/a.html', 'http://mail.ru/b.html']
         expected_counters = []
 
-        content1 = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=a.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
-
-        content2 = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=b.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
-
-        content3 = r"""
-            <html>
-                <head>
-                </head>
-                <body>
-                </body>
-            </html>"""
+        content1 = self.get_redirect_html('a.html')
+        content2 = self.get_redirect_html('b.html')
+        content_no_redirect = self.get_default_html()
 
         with mock.patch('source.lib.get_url', mock.Mock(side_effect=[
             (expected_history_urls[1], expected_history_types[0], content1),
             (expected_history_urls[2], expected_history_types[1], content2),
-            (None, None, content3)
+            (None, None, content_no_redirect)
         ])):
             history_types, history_urls, counters = lib.get_redirect_history(expected_history_urls[0], timeout=10)
             self.assertEquals(history_urls, expected_history_urls, 'history_urls not match')
@@ -230,38 +191,15 @@ class InitTestCase(unittest.TestCase):
     def test_get_redirect_history_max_redirects(self):
         expected_history_types = ['meta_tag', 'meta_tag']
         expected_history_urls = ['http://mail.ru/', 'http://mail.ru/a.html', 'http://mail.ru/b.html']
-        expected_counters = []
 
-        content1 = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=a.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
-
-        content2 = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=b.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
-
-        content3 = r"""
-            <html>
-                <head>
-                </head>
-                <body>
-                </body>
-            </html>"""
+        content1 = self.get_redirect_html('a.html')
+        content2 = self.get_redirect_html('b.html')
+        content_no_redirect = self.get_default_html()
 
         with mock.patch('source.lib.get_url', mock.Mock(side_effect=[
             (expected_history_urls[1], expected_history_types[0], content1),
             (expected_history_urls[2], expected_history_types[1], content2),
-            (None, None, content3)
+            (None, None, content_no_redirect)
         ])):
             history_types, history_urls, counters = lib.get_redirect_history(expected_history_urls[0],
                                                                              timeout=10,
@@ -272,38 +210,15 @@ class InitTestCase(unittest.TestCase):
     def test_get_redirect_history_error(self):
         expected_history_types = ['ERROR', 'meta_tag']
         expected_history_urls = ['http://mail.ru/', 'http://mail.ru/a.html', 'http://mail.ru/b.html']
-        expected_counters = []
 
-        content1 = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=a.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
-
-        content2 = r"""
-            <html>
-                <head>
-                    <meta http-equiv="refresh" content="5; url=b.html">
-                </head>
-                <body>
-                </body>
-            </html>"""
-
-        content3 = r"""
-            <html>
-                <head>
-                </head>
-                <body>
-                </body>
-            </html>"""
+        content1 = self.get_redirect_html('a.html')
+        content2 = self.get_redirect_html('b.html')
+        content_no_redirect = self.get_default_html()
 
         with mock.patch('source.lib.get_url', mock.Mock(side_effect=[
             (expected_history_urls[1], expected_history_types[0], content1),
             (expected_history_urls[2], expected_history_types[1], content2),
-            (None, None, content3)
+            (None, None, content_no_redirect)
         ])):
             history_types, history_urls, counters = lib.get_redirect_history(expected_history_urls[0],
                                                                              timeout=10)
