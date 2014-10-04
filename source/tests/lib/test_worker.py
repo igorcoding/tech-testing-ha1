@@ -35,6 +35,20 @@ class WorkerTestCase(unittest.TestCase):
 
         assert not get_redirect_history_from_task_mock.called, 'Attempt to work with invalid task'
 
+    @mock.patch('source.lib.worker.get_redirect_history_from_task', mock.Mock(return_value=None))
+    def test_handle_next_task_no_redirect_history(self):
+        config = mock.Mock()
+        input_tube = mock.Mock()
+        output_tube = mock.Mock()
+
+        input_tube.put = mock.Mock()
+        output_tube.put = mock.Mock()
+
+        worker.handle_next_task(config, input_tube, output_tube)
+
+        self.assertFalse(input_tube.put.called, 'should be no put into input_tube')
+        self.assertFalse(output_tube.put.called, 'should be no put into output_tube')
+
     @mock.patch('source.lib.worker.get_redirect_history_from_task', mock.Mock(return_value=(mock.Mock(), mock.Mock())))
     def test_handle_next_task_task_acknowledged(self):
         config = mock.Mock()
@@ -102,3 +116,13 @@ class WorkerTestCase(unittest.TestCase):
         is_input, data = worker.get_redirect_history_from_task(task, 10)
 
         self.assertEquals(data['suspicious'], suspicious, 'suspicious is not so suspicious')
+        assert not is_input, 'No ERROR in history_types but is_input is True'
+
+    @mock.patch('source.lib.worker.get_redirect_history', mock.Mock(return_value=(['ERROR'], [], [])))
+    def test_get_redirect_history_from_task_with_error_and_recheck_not_suspicious(self):
+        task = mock.Mock()
+        task.data = {'url': 'url', 'url_id': 'url_id', 'recheck': True}
+
+        is_input, data = worker.get_redirect_history_from_task(task, 10)
+
+        self.assertFalse('suspicious' in data, 'suspicious is too suspicious')

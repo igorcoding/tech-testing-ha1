@@ -30,7 +30,6 @@ class InitTestCase(unittest.TestCase):
                 </body>
             </html>"""
 
-
     def test_prepare_url(self):
         url = 'http://a.b.com/name with space.php;c=a b'
         excepted_url = 'http://a.b.com/name%20with%20space.php;c=a+b'
