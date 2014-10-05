@@ -79,13 +79,9 @@ class InitTestCase(unittest.TestCase):
             [],
             'No counters exist in  this page')
 
-    def _actual_test_make_pycurl_request(self, redirect_url, resp_test, url, useragent, curl_mock=None, string_io_mock=None):
-        if string_io_mock is None:
-            string_io_mock = mock.MagicMock()
+    def _actual_test_make_pycurl_request(self, redirect_url, resp_test, url, useragent, curl_mock=mock.MagicMock(), string_io_mock=mock.MagicMock()):
         string_io_mock.getvalue = mock.Mock(return_value=resp_test)
 
-        if curl_mock is None:
-            curl_mock = mock.MagicMock()
         curl_mock.getinfo = mock.Mock(return_value=redirect_url)
         curl_mock.setopt = mock.Mock()
 
@@ -248,7 +244,7 @@ class InitTestCase(unittest.TestCase):
 
         with mock.patch('source.lib.make_pycurl_request', mock.Mock(return_value=(expected_content, None))),\
             mock.patch('source.lib.fix_market_url') as fix_market_url_m:
-            redirect_url, redirect_type, content = lib.get_url(expected_redirect_url, timeout)
+            lib.get_url(expected_redirect_url, timeout)
 
             assert fix_market_url_m.called, 'fix_market_url() not called'
 

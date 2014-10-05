@@ -66,22 +66,20 @@ class RedirectCheckerTestCase(unittest.TestCase):
         config.CHECK_URL = 'test_url'
         config.HTTP_TIMEOUT = 10
 
+        children = mock.Mock()
+        children.terminate = mock.Mock()
+
         length = 10
-        active_children_mock = MyActiveChildren(length)
-        with mock.patch('source.redirect_checker.active_children', lambda: active_children_mock):
+        active_children = [children] * length
+
+        active_children_fun = mock.Mock(return_value=active_children)
+
+        with mock.patch('source.redirect_checker.active_children', active_children_fun):
             redirect_checker.main_loop_iteration(config, 42)
 
-        m = active_children_mock.m
-
-        all_called_terminate = len(m.method_calls) == length
-
-        if all_called_terminate:
-            for call in m.method_calls:
-                if call[0] != 'terminate':
-                    all_called_terminate = False
-                    break
-
-        self.assertTrue(all_called_terminate, 'Not all active children have been terminated')
+        self.assertEquals(children.terminate.call_count,
+                          length,
+                          'Not all active children have been terminated')
 
     @mock.patch('os.getpid', mock.Mock(return_value=24))
     @mock.patch('source.redirect_checker.run_application', mock.Mock())
