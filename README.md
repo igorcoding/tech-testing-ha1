@@ -1,4 +1,4 @@
-[![Coverage Status](https://img.shields.io/coveralls/igorcoding/tech-testing-ha1.svg)](https://coveralls.io/r/igorcoding/tech-testing-ha1?branch=master)
+[![Coverage Status](https://coveralls.io/repos/igorcoding/tech-testing-ha1/badge.svg?branch=master&service=github)](https://coveralls.io/github/igorcoding/tech-testing-ha1?branch=master)
 
 
 # Домашнее задание №1
